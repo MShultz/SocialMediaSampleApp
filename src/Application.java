@@ -9,8 +9,7 @@ public class Application {
 	public Application(){
 		cluster = Cluster.builder().addContactPoint("13.91.46.223").withPort(9042).withCredentials("cassandra", "bitnami");
 		session = cluster.build().connect();
-		createApplication("SM");
-		shutdownConnection();
+		//createApplication("SM");
 		
 	}
 	public void createApplication(String keySpace){
@@ -45,7 +44,10 @@ public class Application {
 		session.execute(createPostWall);
 		
 	}
-	private void shutdownConnection(){
+	public Session getSession(){
+		return session;
+	}
+	public void shutdownConnection(){
 		session.close();
 	}
 }
