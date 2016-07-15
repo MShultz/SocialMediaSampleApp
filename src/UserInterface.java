@@ -95,6 +95,8 @@ public class UserInterface {
 		Statement createUser = QueryBuilder.insertInto("SM", "users").value("user_name", userName).value("password",
 				password);
 		session.execute(createUser);
+		Statement createUserinFollowing = QueryBuilder.insertInto("SM", "following").value("user_name", userName);
+		session.execute(createUserinFollowing);
 		System.out.println("User Created");
 	}
 
