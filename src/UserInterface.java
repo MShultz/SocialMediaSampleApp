@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -46,7 +47,7 @@ public class UserInterface {
 			userName = lib.promptForInput("Please Input your username", false);
 			exists = checkIfUsernameExists(userName);
 			if (!exists)
-				System.out.println("Oops! That's not a vailid username!");
+				System.out.println("Oops! That's not a valid username!");
 		} while (!exists);
 		String password;
 		boolean valid = false;
@@ -99,7 +100,8 @@ public class UserInterface {
 
 	public void userMenu(String userName) {
 		boolean logout;
-		String[] userMenu = { "Create a Post", "View All Posts", "View Posts from a User", "Delete a Post", "Logout" };
+		String[] userMenu = { "Create a Post", "View All Posts", "View Posts from a User",
+				"View posts from Users you follow", "Follow a User", "Delete a Post", "View all Users", "Logout" };
 		do {
 			logout = determineUserRoute(lib.promptForMenuSelection(userMenu, false), userName);
 		} while (!logout);
@@ -115,12 +117,21 @@ public class UserInterface {
 			viewPosts(true, null);
 			break;
 		case 3:
-			viewPosts(false, lib.promptForInput("Input the name of the user you'd like to find.", false));
+			viewPosts(false, lib.promptForInput("Input the name of the user you'd like to find", false));
 			break;
 		case 4:
-			deletePost(userName);
+			getFollowedPosts(userName);
 			break;
 		case 5:
+			followAUser(userName, lib.promptForMenuSelection(getAllUsers(), true));
+			break;
+		case 6:
+			deletePost(userName);
+			break;
+		case 7:
+			printAllUsers(getAllUsers());
+			break;
+		case 8:
 			logoutChoice = true;
 			break;
 		}
@@ -141,13 +152,7 @@ public class UserInterface {
 				: QueryBuilder.select().from("SM", "posts").allowFiltering()
 						.where(QueryBuilder.eq("user_name", userChoice)));
 		ResultSet all = session.execute(getAllPosts);
-		for (Row r : all.all()) {
-			System.out.println("-----------------------------------------------");
-			System.out.println(r.getString("user_name") + " posted this" + ": \n\n" + r.getString("content"));
-			Date date2 = r.getTimestamp("post_id");
-			System.out.println("\t\tAt " + date2);
-			System.out.println("-----------------------------------------------");
-		}
+		printPosts(all);
 	}
 
 	public void deletePost(String userName) {
@@ -167,7 +172,78 @@ public class UserInterface {
 					.where(QueryBuilder.eq("post_id", l.get(decisionToEndAllDecisions - 1).getTimestamp("post_id")));
 			session.execute(actuallyDeletePost);
 			System.out.println(
-					"Alright. It is gone forever. You're not getting it back. Do you know how much work it took to allow you to delete that garbage?1");
+					"Alright. It is gone forever. You're not getting it back. Do you know how much work it took to allow you to delete that garbage?");
 		}
+	}
+
+	public void getFollowedPosts(String userName) {
+		Statement getFollowedPosts = QueryBuilder.select().from("SM", "posts").allowFiltering()
+				.where(QueryBuilder.in("user_name", getFollowingList(userName)));
+		ResultSet followedPosts = session.execute(getFollowedPosts);
+		printPosts(followedPosts);
+	}
+
+	public void printPosts(ResultSet posts) {
+		for (Row r : posts.all()) {
+			System.out.println("-----------------------------------------------");
+			System.out.println(r.getString("user_name") + " posted this" + ": \n\n" + r.getString("content"));
+			Date date2 = r.getTimestamp("post_id");
+			System.out.println("\t\tAt " + date2);
+			System.out.println("-----------------------------------------------");
+		}
+	}
+
+	public void followAUser(String userName, int userToFollow) {
+		if (userToFollow != 0) {
+			if (isFollowing(userName, getAllUsers()[userToFollow - 1]))
+				System.out.println("You're already following that user, Little Muffin Top :(");
+			else {
+				List<String> newList = getFollowingList(userName);
+				newList.add(getAllUsers()[userToFollow - 1]);
+				Statement addUser = QueryBuilder.update("SM", "following")
+						.with(QueryBuilder.set("followed_user_Names", newList))
+						.where(QueryBuilder.eq("user_name", userName));
+				session.execute(addUser);
+				System.out.println("You are now following " + getAllUsers()[userToFollow-1] + "!");
+			}
+		}
+	}
+
+	public boolean isFollowing(String userName, String userToFollow) {
+		boolean isFollowing = false;
+		for (String s : getFollowingList(userName)) {
+			if (s.equals(userToFollow))
+				isFollowing = true;
+		}
+		return isFollowing;
+	}
+
+	public List<String> getFollowingList(String userName) {
+		Statement following = QueryBuilder.select().from("SM", "following")
+				.where(QueryBuilder.eq("user_name", userName));
+		List<Row> userFollows = session.execute(following).all();
+		Row follows = userFollows.get(0);
+		return follows.getList("followed_user_Names", String.class);
+	}
+
+	public String[] getAllUsers() {
+		ArrayList<String> currentUsers = new ArrayList<String>();
+		Statement users = QueryBuilder.select("user_name").from("SM", "users");
+		List<Row> usersplz = session.execute(users).all();
+		for (Row r : usersplz) {
+			currentUsers.add(r.getString("user_name"));
+		}
+		String[] pleaseWork = new String[currentUsers.size()];
+		return currentUsers.toArray(pleaseWork);
+	}
+
+	public void printAllUsers(String[] users) {
+	for(int i = 1; i < users.length + 1; ++i){
+		System.out.print(users[i-1] + ", ");
+		if(i % 5 == 0){
+			System.out.println("");
+		}
+	}
+		System.out.println("");
 	}
 }
